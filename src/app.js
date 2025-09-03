@@ -1,24 +1,20 @@
-import 'dotenv/config';
-import express from 'express';
+import express, { json } from 'express';
 import cors from 'cors';
-import helmet from 'helmet';
-import rateLimit from 'express-rate-limit';
-import authRoutes from './routes/auth.routes.js';
-import alunoRoutes from './routes/aluno.routes.js';
-import funcionarioRoutes from './routes/funcionario.routes.js';
+require('dotenv').config();
+
+import authRoutes from './routes/auth.routes';
+import alunoRoutes from './routes/aluno.routes';
+import funcionarioRoutes from './routes/funcionario.routes';
+import escolaRoutes from './routes/escola.routes';
 
 const app = express();
-app.use(helmet());
 app.use(cors());
-app.use(express.json());
-app.use(rateLimit({ windowMs: 1*60*1000, max: 100 }));
+app.use(json());
 
 app.use('/api/auth', authRoutes);
-app.use('/api/alunos', alunoRoutes);
-app.use('/api/funcionarios', funcionarioRoutes);
+app.use('/api/aluno', alunoRoutes);
+app.use('/api/funcionario', funcionarioRoutes);
+app.use('/api/escola', escolaRoutes);
 
-app.get('/', (_,res)=>res.send('EDUON API OK'));
-
-const port = Number(process.env.PORT || 3000);
-app.listen(port, ()=>console.log(`Server on ${port}`));
-s
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => console.log(`Server listening on ${PORT}`));

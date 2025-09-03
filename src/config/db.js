@@ -1,12 +1,14 @@
-import 'dotenv/config';
-import pkg from 'pg';
-const { Pool } = pkg;
+// src/config/db.js
+import { createClient } from '@supabase/supabase-js';
+require('dotenv').config();
 
-export const pool = new Pool({
-  host: process.env.DB_HOST,
-  port: Number(process.env.DB_PORT ?? 5432),
-  user: process.env.DB_USER,
-  password: process.env.DB_PASS,
-  database: process.env.DB_NAME
-});
+const SUPABASE_URL = process.env.SUPABASE_URL;
+const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY; // use com cuidado no backend
 
+if (!SUPABASE_URL || !SUPABASE_KEY) {
+  throw new Error('Supabase env variables not set');
+}
+
+const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+export default supabase;

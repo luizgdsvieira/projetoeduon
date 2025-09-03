@@ -1,37 +1,27 @@
-import jwt from 'jsonwebtoken';
-import 'dotenv/config';
+// src/middleware/auth.middleware.js
+import { verify } from 'jsonwebtoken';
+require('dotenv').config();
+const JWT_SECRET = process.env.JWT_SECRET;
 
-export function verifyToken(req, res, next) {
-  const authHeader = req.headers['authorization'] || '';
-  const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
-
-  if (!token) return res.status(401).json({ message: 'Token não fornecido' });
-
+function authenticate(req, res, next) {
+  const auth = req.headers.authorization;
+  if (!auth) return res.status(401).json({ message: 'No token' });
+  const token = auth.split(' ')[1];
   try {
-    const payload = jwt.verify(token, process.env.JWT_SECRET);
-    // payload deve conter id, role, escola_id
+    const payload = verify(token, JWT_SECRET);
     req.user = payload;
-    return next();
+    next();
   } catch (err) {
-    return res.status(401).json({ message: 'Token inválido ou expirado' });
+    res.status(401).json({ message: 'Invalid token' });
   }
 }
 
-// middleware factory para checar roles
-export function authorizeRoles(...allowedRoles) {
+function authorizeRoles(...allowed) {
   return (req, res, next) => {
-    if (!req.user) return res.status(401).json({ message: 'Unauthorized' });
-    if (!allowedRoles.includes(req.user.role)) {
-      return res.status(403).json({ message: 'Acesso negado' });
-    }
+    if (!req.user) return res.status(401).json({ message: 'No user' });
+    if (!allowed.includes(req.user.role)) return res.status(403).json({ message: 'Forbidden' });
     next();
   };
 }
 
-// middleware para garantir que o recurso pertence à mesma escola
-export function ensureSameEscola(req, res, next) {
-  // ex.: escola_id pode vir nos params ou no body, mas o fluxo espera sempre usar req.user.escola_id
-  // controllers devem usar req.user.escola_id nas queries
-  if (!req.user?.escola_id) return res.status(401).json({ message: 'Escola não definida no token' });
-  next();
-}
+export default { authenticate, authorizeRoles };
