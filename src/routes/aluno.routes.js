@@ -1,10 +1,10 @@
-const express = require('express');
-const { authenticate, authorizeRoles } = require('../middleware/auth.middleware');
-const { createStudent } = require('../controllers/aluno.controller');
+import { Router } from 'express';
+import { authenticate, authorizeRoles } from '../middleware/auth.middleware';
+import { createStudent } from '../controllers/aluno.controller';
 
-const router = express.Router();
+const router = Router();
 
 router.post('/', authenticate, authorizeRoles('admin'), createStudent);
 // outras rotas: GET /:id, GET /:id/qrcode etc.
 
-module.exports = router;
+export default router;
