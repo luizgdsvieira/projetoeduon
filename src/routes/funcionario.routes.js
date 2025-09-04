@@ -1,7 +1,7 @@
 import { authenticate, authorizeRoles } from '../middleware/auth.middleware.js';
 import { Router } from 'express';
 import { createFuncionario } from '../controllers/funcionario.controller.js';
-import authMiddleware from '../middleware/auth.middleware.js'; // Mudança aqui!
+
 
 const router = Router();
 
