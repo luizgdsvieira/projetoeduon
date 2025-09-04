@@ -30,4 +30,4 @@ res.json({ staff, credentials: { username, password: passwordPlain } });
 }
 
 
-export default { createFuncionario };
+export { createFuncionario };
