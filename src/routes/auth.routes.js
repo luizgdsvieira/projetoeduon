@@ -13,11 +13,15 @@ export default router;
 
 // auth.routes.js
 import { Router } from 'express';
-import { login } from '../controllers/auth.controller';
 const router = Router();
+import { login } from '../controllers/auth.controller';
 
+// rota de healthcheck
+router.get('/health', (req, res) => {
+  res.json({ status: 'API EDUON online 🚀' });
+});
 
+// login
 router.post('/login', login);
-
 
 export default router;

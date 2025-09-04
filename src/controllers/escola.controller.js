@@ -1,17 +1,15 @@
 import { from } from '../config/db';
 
+export async function getSchool(req, res) {
+  try {
+    const { data, error } = await from('schools')
+      .select('*')
+      .eq('id', req.user.school_id)
+      .single();
 
-async function createEscola(req, res) {
-const { name, cnpj } = req.body;
-const { data: escola, error } = await from('schools')
-.insert([{ name, cnpj }])
-.select('*')
-.single();
-
-
-if (error) return res.status(400).json({ error });
-res.json(escola);
+    if (error) throw error;
+    res.json(data);
+  } catch (err) {
+    res.status(500).json({ error: 'Erro ao buscar escola' });
+  }
 }
-
-
-export default { createEscola };

@@ -1,10 +1,9 @@
 import { Router } from 'express';
-import { createStudent } from '../controllers/aluno.controller';
-import { authenticate, authorizeRoles } from '../middleware/auth.middleware';
 const router = Router();
+import { getAll, getById } from '../controllers/aluno.controller';
+import auth from '../middleware/auth.middleware';
 
-
-router.post('/', authenticate, authorizeRoles('admin'), createStudent);
-
+router.get('/', auth, getAll);
+router.get('/:id', auth, getById);
 
 export default router;

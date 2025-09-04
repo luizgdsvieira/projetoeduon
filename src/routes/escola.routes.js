@@ -1,10 +1,8 @@
 import { Router } from 'express';
-import { createEscola } from '../controllers/escola.controller';
-import { authenticate, authorizeRoles } from '../middleware/auth.middleware';
 const router = Router();
+import { getSchool } from '../controllers/escola.controller';
+import auth from '../middleware/auth.middleware';
 
-
-router.post('/', authenticate, authorizeRoles('admin'), createEscola);
-
+router.get('/', auth, getSchool);
 
 export default router;

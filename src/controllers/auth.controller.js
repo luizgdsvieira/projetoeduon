@@ -1,28 +1,33 @@
 import { from } from '../config/db';
-import { compare } from 'bcryptjs';
 import { sign } from 'jsonwebtoken';
-require('dotenv').config();
-const JWT_SECRET = process.env.JWT_SECRET;
+import { compare } from 'bcrypt';
 
+export async function login(req, res) {
+  try {
+    const { username, password } = req.body;
 
-async function login(req, res) {
-const { username, password } = req.body;
-const { data: user, error } = await from('users')
-.select('*')
-.eq('username', username)
-.single();
+    const { data: users, error } = await from('users')
+      .select('*')
+      .eq('username', username)
+      .limit(1);
 
+    if (error) throw error;
 
-if (error || !user) return res.status(401).json({ message: 'Invalid credentials' });
+    const user = users[0];
+    if (!user) return res.status(401).json({ error: 'Usuário não encontrado' });
 
+    const match = await compare(password, user.password_hash);
+    if (!match) return res.status(401).json({ error: 'Senha inválida' });
 
-const valid = await compare(password, user.password_hash);
-if (!valid) return res.status(401).json({ message: 'Invalid credentials' });
+    const token = sign(
+      { id: user.id, role: user.role, school_id: user.school_id },
+      process.env.JWT_SECRET,
+      { expiresIn: '8h' }
+    );
 
-
-const token = sign({ user_id: user.id, role: user.role, school_id: user.school_id }, JWT_SECRET, { expiresIn: '8h' });
-res.json({ accessToken: token, user: { id: user.id, role: user.role, school_id: user.school_id } });
+    res.json({ token, role: user.role });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Erro no login' });
+  }
 }
-
-
-export default { login };
