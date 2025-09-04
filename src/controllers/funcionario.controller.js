@@ -1,5 +1,8 @@
 import supabase from '../config/db.js';
-import { hash } from 'bcryptjs';
+import bcrypt from 'bcryptjs';
+
+
+const { hash } = bcrypt;
 
 
 async function createFuncionario(req, res) {
