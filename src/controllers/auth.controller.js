@@ -1,6 +1,9 @@
 import supabase from '../config/db.js';
-import { sign } from 'jsonwebtoken';
-import { compare } from 'bcrypt';
+import jwt from 'jsonwebtoken';
+import bcrypt from 'bcrypt';
+
+const { sign } = jwt;
+const { compare } = bcrypt;
 
 export async function login(req, res) {
   try {
