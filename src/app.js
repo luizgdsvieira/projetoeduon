@@ -2,10 +2,10 @@ import express, { json } from 'express';
 import cors from 'cors';
 import 'dotenv/config';
 
-import authRoutes from './routes/auth.routes';
-import alunoRoutes from './routes/aluno.routes';
-import funcionarioRoutes from './routes/funcionario.routes';
-import escolaRoutes from './routes/escola.routes';
+import authRoutes from './routes/auth.routes.js';
+import alunoRoutes from './routes/aluno.routes.js';
+import funcionarioRoutes from './routes/funcionario.routes.js';
+import escolaRoutes from './routes/escola.routes.js';
 
 const app = express();
 app.use(cors());
