@@ -1,4 +1,4 @@
-import { from } from '../config/db';
+import { from } from '../config/db.js';
 import { sign } from 'jsonwebtoken';
 import { compare } from 'bcrypt';
 

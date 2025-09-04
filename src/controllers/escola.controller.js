@@ -1,4 +1,4 @@
-import { from } from '../config/db';
+import { from } from '../config/db.js';
 
 export async function getSchool(req, res) {
   try {
