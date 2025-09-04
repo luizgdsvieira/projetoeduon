@@ -1,4 +1,4 @@
-import { from } from '../config/db.js';
+import supabase from '../config/db.js';
 import { sign } from 'jsonwebtoken';
 import { compare } from 'bcrypt';
 
@@ -6,7 +6,7 @@ export async function login(req, res) {
   try {
     const { username, password } = req.body;
 
-    const { data: users, error } = await from('users')
+    const { data: users, error } = await supabase.from('users')
       .select('*')
       .eq('username', username)
       .limit(1);
