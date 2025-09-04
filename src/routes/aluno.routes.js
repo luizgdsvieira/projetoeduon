@@ -4,7 +4,8 @@ import { getAll, getById } from '../controllers/aluno.controller.js';
 import { authenticate, authorizeRoles } from '../middleware/auth.middleware.js';
 
 
-router.get('/', auth, getAll);
-router.get('/:id', auth, getById);
+router.get('/', authenticate, getAll);
+router.get('/:id', authenticate, getById);
+router.get('/', authenticate, authorizeRoles(['aluno']), getAll);
 
 export default router;
