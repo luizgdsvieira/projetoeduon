@@ -1,4 +1,4 @@
-import { from } from '../config/db.js';
+import supabase from '../config/db.js';
 import { hash } from 'bcryptjs';
 
 
