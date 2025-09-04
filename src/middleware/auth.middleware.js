@@ -1,6 +1,6 @@
 import jwt from 'jsonwebtoken';
 
-export default (req, res, next) => {
+export const authenticate = (req, res, next) => {
   const authHeader = req.headers['authorization'];
   if (!authHeader) return res.status(401).json({ error: 'Token não fornecido' });
 
@@ -13,5 +13,17 @@ export default (req, res, next) => {
     next();
   } catch (err) {
     return res.status(403).json({ error: 'Token expirado ou inválido' });
+  }
+};
+
+export const authorizeRoles = (allowedRoles) => (req, res, next) => {
+  if (!req.user || !req.user.role) {
+    return res.status(401).json({ error: 'Autorização necessária' });
+  }
+
+  if (allowedRoles.includes(req.user.role)) {
+    next();
+  } else {
+    res.status(403).json({ error: 'Acesso negado' });
   }
 };
