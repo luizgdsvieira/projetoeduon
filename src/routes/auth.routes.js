@@ -14,7 +14,7 @@ export default router;
 // auth.routes.js
 import { Router } from 'express';
 const router = Router();
-import { login } from '../controllers/auth.controller';
+import { login } from '../controllers/auth.controller.js';
 
 // rota de healthcheck
 router.get('/health', (req, res) => {
