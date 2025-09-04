@@ -7,8 +7,8 @@ const router = Router();
 
 router.post(
   '/',
-  authMiddleware, // Apenas a exportação padrão
-  authMiddleware.authorizeRoles('admin'), // Acesse a função através do objeto
+  authenticate, // Apenas a exportação padrão
+  authorizeRoles('admin'), // Acesse a função através do objeto
   createFuncionario
 );
 
