@@ -31,3 +31,14 @@ res.json({ staff, credentials: { username, password: passwordPlain } });
 
 
 export { createFuncionario };
+
+exports.create = async (req, res) => {
+  try {
+    const funcionario = { ...req.body, school_id: req.user.school_id };
+    const { data, error } = await supabase.from('staff').insert([funcionario]);
+    if (error) throw error;
+    res.status(201).json(data[0]);
+  } catch (err) {
+    res.status(500).json({ error: 'Erro ao cadastrar funcionário' });
+  }
+};
