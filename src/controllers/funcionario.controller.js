@@ -32,7 +32,7 @@ res.json({ staff, credentials: { username, password: passwordPlain } });
 
 export { createFuncionario };
 
-exports.create = async (req, res) => {
+export const create = async (req, res) => {
   try {
     const funcionario = { ...req.body, school_id: req.user.school_id };
     const { data, error } = await supabase.from('staff').insert([funcionario]);

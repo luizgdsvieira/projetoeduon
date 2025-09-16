@@ -28,7 +28,7 @@ export async function getById(req, res) {
   }
 }
 
-exports.create = async (req, res) => {
+export async function create(req, res) {
   try {
     const aluno = { ...req.body, school_id: req.user.school_id };
     const { data, error } = await supabase.from('students').insert([aluno]);
@@ -37,4 +37,4 @@ exports.create = async (req, res) => {
   } catch (err) {
     res.status(500).json({ error: 'Erro ao cadastrar aluno' });
   }
-};
+}
