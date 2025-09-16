@@ -5,7 +5,7 @@ import { createFuncionario } from '../controllers/funcionario.controller.js';
 
 const router = Router();
 
-router.post("/", authenticate, funcionarioController.create);
+router.post('/', authenticate, authorizeRoles('admin'), create);
 router.post(
   '/',
   authenticate, // Apenas a exportação padrão
