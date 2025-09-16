@@ -1,6 +1,6 @@
 import { Router } from 'express';
 const router = Router();
-import { getAll, getById } from '../controllers/aluno.controller.js';
+import { getAll, getById, create } from '../controllers/aluno.controller.js';
 import { authenticate, authorizeRoles } from '../middleware/auth.middleware.js';
 
 
