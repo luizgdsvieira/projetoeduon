@@ -9,18 +9,26 @@ import escolaRoutes from './routes/escola.routes.js';
 
 const app = express();
 
-// Configuração de CORS mais específica
-app.use(cors({
-  origin: ['http://localhost:5173', 'http://localhost:3000', 'https://eduon-site.netlify.app', 'https://projetoeduon.netlify.app'],
-  credentials: true
-}));
+// Configuração de CORS para produção
+const corsOptions = {
+  origin: [
+    'http://localhost:5173', // Vite dev server
+    'http://localhost:3000', // Vite dev server alternativo
+    'https://eduonweb.netlify.app', // Netlify
+    'https://eduonweb.netlify.app/' // Netlify com barra
+  ],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+};
 
+app.use(cors(corsOptions));
 app.use(json());
 
-// Rota raiz
+// Rota raiz para evitar "Cannot GET /"
 app.get('/', (req, res) => {
   res.json({ 
-    message: 'API EDUON funcionando! 🚀', 
+    message: 'API EDUON funcionando! 🚀',
     version: '1.0.0',
     endpoints: {
       auth: '/api/auth',
@@ -29,11 +37,6 @@ app.get('/', (req, res) => {
       escola: '/api/escola'
     }
   });
-});
-
-// Health check
-app.get('/health', (req, res) => {
-  res.json({ status: 'API EDUON online 🚀', timestamp: new Date().toISOString() });
 });
 
 app.use('/api/auth', authRoutes);
