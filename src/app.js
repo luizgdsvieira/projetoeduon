@@ -16,5 +16,6 @@ app.use('/api/alunos', alunoRoutes);
 app.use('/api/funcionarios', funcionarioRoutes);
 app.use('/api/escola', escolaRoutes);
 
+
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`API EDUON rodando na porta ${PORT}`));
