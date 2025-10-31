@@ -8,32 +8,64 @@ const { compare } = bcrypt;
 export async function login(req, res) {
   try {
     const { username, password } = req.body;
-    console.log("📥 Login recebido:", req.body); // log para depuração
+    console.log("📥 Login recebido:", { username, password: password ? '***' : undefined });
 
-    // Busca o usuário no Supabase
-    const { data: users, error } = await supabase.from('users')
+    // Validação básica
+    if (!username || !password) {
+      return res.status(400).json({ error: 'Username e password são obrigatórios' });
+    }
+
+    // Busca o usuário no Supabase com melhor tratamento de erro
+    console.log("🔍 Buscando usuário no Supabase...");
+    const { data: users, error } = await supabase
+      .from('users')
       .select('*')
       .eq('username', username)
       .limit(1);
 
     if (error) {
       console.error("❌ Erro na consulta Supabase:", error);
+      console.error("📋 Tipo do erro:", error.constructor?.name || typeof error);
+      console.error("📋 Detalhes:", JSON.stringify(error, null, 2));
+      
+      // Se for erro de rede/conectividade, fornece mensagem mais específica
+      if (error.message?.includes('fetch') || error.message?.includes('network') || error.message?.includes('ECONNREFUSED')) {
+        return res.status(503).json({ 
+          error: 'Serviço temporariamente indisponível', 
+          details: 'Erro de conexão com o banco de dados. Tente novamente em alguns instantes.' 
+        });
+      }
+      
       throw error;
     }
 
-    const user = users[0];
+    const user = users?.[0];
     if (!user) {
       console.warn("⚠️ Usuário não encontrado:", username);
       return res.status(401).json({ error: 'Usuário não encontrado' });
     }
 
-    // Valida a senha
-    const match = await compare(password, user.password_hash);
-    console.log("🔐 Comparação de senha:", match);
+    console.log("👤 Usuário encontrado:", { id: user.id, username: user.username, role: user.role });
 
-    if (!match) return res.status(401).json({ error: 'Senha inválida' });
+    // Valida a senha
+    if (!user.password_hash) {
+      console.error("❌ Usuário sem hash de senha:", username);
+      return res.status(500).json({ error: 'Erro na configuração do usuário' });
+    }
+
+    const match = await compare(password, user.password_hash);
+    console.log("🔐 Comparação de senha:", match ? "✅ Match" : "❌ Não match");
+
+    if (!match) {
+      return res.status(401).json({ error: 'Senha inválida' });
+    }
 
     // Gera o JWT
+    if (!process.env.JWT_SECRET) {
+      console.error("❌ JWT_SECRET não está definido");
+      return res.status(500).json({ error: 'Erro de configuração do servidor' });
+    }
+
     const token = sign(
       { id: user.id, role: user.role, school_id: user.school_id },
       process.env.JWT_SECRET,
@@ -45,7 +77,21 @@ export async function login(req, res) {
     res.json({ token, role: user.role });
   } catch (err) {
     console.error("🔥 Erro no login:", err);
-    res.status(500).json({ error: 'Erro no login', details: err.message });
+    console.error("📋 Tipo do erro:", err.constructor?.name || typeof err);
+    console.error("📋 Mensagem:", err.message);
+    if (err.stack) {
+      console.error("📋 Stack:", err.stack);
+    }
+    if (err.cause) {
+      console.error("📋 Causa:", err.cause);
+    }
+    
+    // Mensagem de erro mais segura para produção
+    const errorMessage = err.message || 'Erro desconhecido';
+    res.status(500).json({ 
+      error: 'Erro no login', 
+      details: process.env.NODE_ENV === 'production' ? 'Erro interno do servidor' : errorMessage
+    });
   }
 }
 
