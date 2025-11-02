@@ -1,36 +1,61 @@
 import supabase from '../config/db.js';
 import bcrypt from 'bcryptjs';
 
-
 const { hash } = bcrypt;
 
-
 async function createFuncionario(req, res) {
-const { name, cargo, nascimento, school_id } = req.body;
+  const { name, cargo, nascimento, school_id } = req.body;
 
+  const { data: staff, error } = await supabase
+    .from('staff')
+    .insert([{ name, cargo, nascimento, school_id }])
+    .select('*')
+    .single();
 
-const { data: staff, error } = await from('staff')
-.insert([{ name, cargo, nascimento, school_id }])
-.select('*')
-.single();
+  if (error) return res.status(400).json({ error });
 
+  const username = `${school_id.slice(0, 6)}-stf-${staff.id.slice(0, 6)}`;
+  const passwordPlain = Math.random().toString(36).slice(-8);
+  const password_hash = await hash(passwordPlain, 10);
 
-if (error) return res.status(400).json({ error });
+  await supabase.from('users').insert([{ school_id, username, password_hash, role: 'staff', staff_id: staff.id }]);
 
-
-const username = `${school_id.slice(0, 6)}-stf-${staff.id.slice(0, 6)}`;
-const passwordPlain = Math.random().toString(36).slice(-8);
-const password_hash = await hash(passwordPlain, 10);
-
-
-await from('users').insert([{ school_id, username, password_hash, role: 'staff', staff_id: staff.id }]);
-
-
-res.json({ staff, credentials: { username, password: passwordPlain } });
+  res.json({ staff, credentials: { username, password: passwordPlain } });
 }
 
-
 export { createFuncionario };
+
+export const getAll = async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('staff')
+      .select('*')
+      .eq('school_id', req.user.school_id);
+
+    if (error) throw error;
+    res.json(data);
+  } catch (err) {
+    console.error('Erro ao buscar funcionários:', err);
+    res.status(500).json({ error: 'Erro ao buscar funcionários', details: err.message });
+  }
+};
+
+export const getById = async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('staff')
+      .select('*')
+      .eq('id', req.params.id)
+      .eq('school_id', req.user.school_id)
+      .single();
+
+    if (error) throw error;
+    res.json(data);
+  } catch (err) {
+    console.error('Erro ao buscar funcionário:', err);
+    res.status(500).json({ error: 'Erro ao buscar funcionário', details: err.message });
+  }
+};
 
 export const create = async (req, res) => {
   try {
@@ -39,6 +64,7 @@ export const create = async (req, res) => {
     if (error) throw error;
     res.status(201).json(data[0]);
   } catch (err) {
-    res.status(500).json({ error: 'Erro ao cadastrar funcionário' });
+    console.error('Erro ao cadastrar funcionário:', err);
+    res.status(500).json({ error: 'Erro ao cadastrar funcionário', details: err.message });
   }
 };
