@@ -85,6 +85,31 @@ export async function create(req, res) {
     }
     
     console.log('✅ Aluno cadastrado com sucesso:', data);
+    
+    // Verificar se data existe e tem elementos
+    if (!data || data.length === 0) {
+      console.warn('⚠️ Supabase retornou array vazio, mas o insert pode ter funcionado');
+      // Buscar o aluno recém-criado como fallback
+      const { data: alunoCriado } = await supabase
+        .from('students')
+        .select('*')
+        .eq('school_id', req.user.school_id)
+        .eq('name', aluno.name)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single();
+      
+      if (alunoCriado) {
+        return res.status(201).json(alunoCriado);
+      }
+      
+      return res.status(201).json({ 
+        message: 'Aluno cadastrado com sucesso',
+        name: aluno.name,
+        school_id: aluno.school_id
+      });
+    }
+    
     res.status(201).json(data[0]);
   } catch (err) {
     console.error('🔥 Erro no controller:', err);

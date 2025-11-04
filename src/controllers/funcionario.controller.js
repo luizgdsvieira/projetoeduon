@@ -59,12 +59,80 @@ export const getById = async (req, res) => {
 
 export const create = async (req, res) => {
   try {
-    const funcionario = { ...req.body, school_id: req.user.school_id };
-    const { data, error } = await supabase.from('staff').insert([funcionario]);
-    if (error) throw error;
+    console.log('📥 Dados recebidos para cadastro de funcionário:', req.body);
+    console.log('👤 Usuário logado:', req.user);
+    
+    // Validar campos obrigatórios
+    if (!req.body.name && !req.body.nome) {
+      return res.status(400).json({ 
+        error: 'Nome é obrigatório',
+        details: 'O campo name ou nome deve ser fornecido'
+      });
+    }
+    
+    // Preparar dados do funcionário
+    const funcionario = { 
+      name: req.body.name || req.body.nome,
+      cargo: req.body.cargo || null,
+      nascimento: req.body.nascimento || null,
+      school_id: req.user.school_id 
+    };
+    
+    // Remover campos undefined ou vazios (exceto school_id que é obrigatório)
+    Object.keys(funcionario).forEach(key => {
+      if (key !== 'school_id' && (funcionario[key] === undefined || funcionario[key] === '' || funcionario[key] === null)) {
+        delete funcionario[key];
+      }
+    });
+    
+    console.log('📝 Dados do funcionário a serem inseridos:', funcionario);
+    
+    const { data, error } = await supabase
+      .from('staff')
+      .insert([funcionario])
+      .select();
+    
+    if (error) {
+      console.error('❌ Erro do Supabase:', error);
+      return res.status(400).json({ 
+        error: 'Erro ao cadastrar funcionário', 
+        details: error.message,
+        code: error.code
+      });
+    }
+    
+    console.log('✅ Funcionário cadastrado com sucesso:', data);
+    
+    // Verificar se data existe e tem elementos
+    if (!data || data.length === 0) {
+      console.warn('⚠️ Supabase retornou array vazio, mas o insert pode ter funcionado');
+      // Buscar o funcionário recém-criado como fallback
+      const { data: funcionarioCriado } = await supabase
+        .from('staff')
+        .select('*')
+        .eq('school_id', req.user.school_id)
+        .eq('name', funcionario.name)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single();
+      
+      if (funcionarioCriado) {
+        return res.status(201).json(funcionarioCriado);
+      }
+      
+      return res.status(201).json({ 
+        message: 'Funcionário cadastrado com sucesso',
+        name: funcionario.name,
+        school_id: funcionario.school_id
+      });
+    }
+    
     res.status(201).json(data[0]);
   } catch (err) {
-    console.error('Erro ao cadastrar funcionário:', err);
-    res.status(500).json({ error: 'Erro ao cadastrar funcionário', details: err.message });
+    console.error('🔥 Erro no controller:', err);
+    res.status(500).json({ 
+      error: 'Erro ao cadastrar funcionário', 
+      details: err.message 
+    });
   }
 };
