@@ -39,85 +39,60 @@ export async function create(req, res) {
     console.log('📥 Dados recebidos para cadastro:', req.body);
     console.log('👤 Usuário logado:', req.user);
 
-    // === 1️⃣ Validação básica ===
-    const nome = req.body.name || req.body.nome;
-    if (!nome) {
+    if (!req.body.name && !req.body.nome) {
       return res.status(400).json({
         error: 'Nome é obrigatório',
         details: 'O campo name ou nome deve ser fornecido'
       });
     }
 
-    // === 2️⃣ Inserir aluno no banco ===
     const aluno = {
-      name: nome,
-      matricula: req.body.matricula || null,
-      ano: req.body.ano || null,
-      turma: req.body.turma || null,
-      turno: req.body.turno || null,
-      nascimento: req.body.nascimento || null,
+      name: req.body.name || req.body.nome,
+      matricula: req.body.matricula,
+      ano: req.body.ano,
+      turma: req.body.turma,
+      turno: req.body.turno,
+      nascimento: req.body.nascimento,
       school_id: req.user.school_id
     };
 
-    const { data: alunoData, error: alunoError } = await supabase
+    // 1️⃣ Inserir aluno
+    const { data: alunoData, error } = await supabase
       .from('students')
       .insert([aluno])
       .select()
       .single();
 
-    if (alunoError) throw alunoError;
+    if (error) throw error;
 
-    console.log('✅ Aluno cadastrado no Supabase:', alunoData);
+    // 2️⃣ Gerar QR Code e token
+    const { token, qrImage } = await qrcodeUtil.generateStudentQr(alunoData);
 
-    // === 3️⃣ Gerar QR Code JWT e atualizar no banco ===
-    const { token: qrToken, qrImage } = await qrUtils.generateStudentQr(alunoData);
-
+    // 3️⃣ Atualizar aluno com o token
     await supabase
       .from('students')
-      .update({ qrcode_token: qrToken })
+      .update({ qrcode_token: token })
       .eq('id', alunoData.id);
 
-    console.log('🎫 QR Code gerado e salvo.');
+    // 4️⃣ Criar usuário de login para o aluno
+    const hashedPassword = await bcrypt.hash(alunoData.matricula || alunoData.name, 10);
 
-    // === 4️⃣ Criar login automático ===
-    const defaultPassword = '123456';
-    const passwordHash = await bcrypt.hash(defaultPassword, 10);
-
-    const usernameBase =
-      alunoData.matricula || alunoData.name.replace(/\s+/g, '').toLowerCase();
-
-    const { data: userData, error: userError } = await supabase
+    await supabase
       .from('users')
-      .insert([
-        {
-          school_id: req.user.school_id,
-          username: usernameBase,
-          password_hash: passwordHash,
-          role: 'student',
-          student_id: alunoData.id
-        }
-      ])
-      .select()
-      .single();
+      .insert([{
+        school_id: alunoData.school_id,
+        username: alunoData.matricula || alunoData.name.toLowerCase().replace(/\s+/g, ''),
+        password_hash: hashedPassword,
+        role: 'student',
+        student_id: alunoData.id
+      }]);
 
-    if (userError) throw userError;
+    console.log('✅ Aluno cadastrado com QR e login:', alunoData.name);
 
-    console.log('👤 Usuário de login criado:', userData);
-
-    // === 5️⃣ Resposta final ===
     res.status(201).json({
-      message: 'Aluno cadastrado com sucesso',
-      aluno: alunoData,
-      user: {
-        username: userData.username,
-        default_password: defaultPassword
-      },
-      qrcode: {
-        token: qrToken,
-        image_base64: qrImage
-      }
+      message: 'Aluno cadastrado com sucesso!',
+      aluno: { ...alunoData, qrcode_token: token, qrImage }
     });
-
   } catch (err) {
     console.error('🔥 Erro ao cadastrar aluno:', err);
     res.status(500).json({
