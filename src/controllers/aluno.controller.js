@@ -2,6 +2,38 @@ import supabase from '../config/db.js';
 import bcrypt from 'bcrypt';
 import qrUtils from '../utils/qrcode.js';
 
+export async function getAll(req, res) {
+  try {
+    const { data, error } = await supabase
+      .from('students')
+      .select('*')
+      .eq('school_id', req.user.school_id);
+
+    if (error) throw error;
+    res.json(data);
+  } catch (err) {
+    console.error('Erro ao buscar alunos:', err);
+    res.status(500).json({ error: 'Erro ao buscar alunos', details: err.message });
+  }
+}
+
+export async function getById(req, res) {
+  try {
+    const { data, error } = await supabase
+      .from('students')
+      .select('*')
+      .eq('id', req.params.id)
+      .eq('school_id', req.user.school_id)
+      .single();
+
+    if (error) throw error;
+    res.json(data);
+  } catch (err) {
+    console.error('Erro ao buscar aluno:', err);
+    res.status(500).json({ error: 'Erro ao buscar aluno', details: err.message });
+  }
+}
+
 export async function create(req, res) {
   try {
     console.log('📥 Dados recebidos para cadastro:', req.body);
