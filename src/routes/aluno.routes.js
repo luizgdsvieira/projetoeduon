@@ -9,5 +9,9 @@ router.post('/', authenticate, authorizeRoles('admin'), create);
 // Rotas GET
 router.get('/', authenticate, getAll);
 router.get('/:id', authenticate, getById);
+router.post('/', authMiddleware, create);
+router.post('/verify-qrcode', verifyQrCode);
+router.post('/verify-qrcode', authMiddleware, verifyQrCode);
+
 
 export default router;
