@@ -1,8 +1,29 @@
 import { Router } from 'express';
+import { getAll, getById, create } from '../controllers/aluno.controller.js';
+import { verifyQrCode } from '../controllers/qrcode.controller.js'; // se você tiver esse controller
+import { authenticate, authorizeRoles } from '../middleware/auth.middleware.js';
+
+const router = Router();
+
+// Rotas GET
+router.get('/', authenticate, getAll);
+router.get('/:id', authenticate, getById);
+
+// Rota POST - criar aluno (somente admin)
+router.post('/', authenticate, authorizeRoles('admin'), create);
+
+// Rota POST - verificar QR Code (acesso livre ou autenticado, conforme sua lógica)
+router.post('/verify-qrcode', verifyQrCode);
+
+export default router;
+
+
+
+/*
+import { Router } from 'express';
 const router = Router();
 import { getAll, getById, create } from '../controllers/aluno.controller.js';
 import { authenticate, authorizeRoles } from '../middleware/auth.middleware.js';
-import { authMiddleware } from '../middleware/auth.middleware.js';
 
 
 // Rotas POST
@@ -17,3 +38,4 @@ router.post('/verify-qrcode', authMiddleware, verifyQrCode);
 
 
 export default router;
+*/
