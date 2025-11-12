@@ -66,32 +66,57 @@ export async function create(req, res) {
     if (error) throw error;
 
     // 2️⃣ Gerar QR Code e token
-    const { token, qrImage } = await qrcodeUtil.generateStudentQr(alunoData);
+    const { token, qrImage } = await qrUtils.generateStudentQr(alunoData);
 
     // 3️⃣ Atualizar aluno com o token
-    await supabase
+    const { error: updateError } = await supabase
       .from('students')
       .update({ qrcode_token: token })
       .eq('id', alunoData.id);
 
-    // 4️⃣ Criar usuário de login para o aluno
-    const hashedPassword = await bcrypt.hash(alunoData.matricula || alunoData.name, 10);
+    if (updateError) {
+      console.error('⚠️ Erro ao atualizar QR Code token:', updateError);
+      // Não falha o cadastro se o update do token falhar, mas loga o erro
+    }
 
-    await supabase
+    // 4️⃣ Criar usuário de login para o aluno
+    const username = alunoData.matricula || alunoData.name.toLowerCase().replace(/\s+/g, '');
+    const defaultPassword = alunoData.matricula || alunoData.name.toLowerCase().replace(/\s+/g, '');
+    const hashedPassword = await bcrypt.hash(defaultPassword, 10);
+
+    const { error: userError } = await supabase
       .from('users')
       .insert([{
         school_id: alunoData.school_id,
-        username: alunoData.matricula || alunoData.name.toLowerCase().replace(/\s+/g, ''),
+        username: username,
         password_hash: hashedPassword,
         role: 'student',
         student_id: alunoData.id
       }]);
 
+    if (userError) {
+      console.error('⚠️ Erro ao criar usuário de login:', userError);
+      // Se o usuário já existe, não falha o cadastro
+      if (userError.code !== '23505') { // 23505 é código de violação de constraint única no PostgreSQL
+        throw new Error(`Erro ao criar usuário de login: ${userError.message}`);
+      }
+    }
+
     console.log('✅ Aluno cadastrado com QR e login:', alunoData.name);
+    console.log('📋 Credenciais de login:', { username, password: defaultPassword });
 
     res.status(201).json({
       message: 'Aluno cadastrado com sucesso!',
-      aluno: { ...alunoData, qrcode_token: token, qrImage }
+      aluno: { 
+        ...alunoData, 
+        qrcode_token: token, 
+        qrImage 
+      },
+      credenciais: {
+        username: username,
+        password: defaultPassword,
+        role: 'student'
+      }
     });
   } catch (err) {
     console.error('🔥 Erro ao cadastrar aluno:', err);
