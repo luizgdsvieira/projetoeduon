@@ -26,17 +26,23 @@ app.use(cors(corsOptions));
 app.use(json());
 
 // Rota raiz para evitar "Cannot GET /"
+const apiInfo = {
+  message: 'API EDUON funcionando! 🚀',
+  version: '1.0.0',
+  endpoints: {
+    auth: '/api/auth',
+    alunos: '/api/alunos',
+    funcionarios: '/api/funcionarios',
+    escola: '/api/escola'
+  }
+};
+
 app.get('/', (req, res) => {
-  res.json({ 
-    message: 'API EDUON funcionando! 🚀',
-    version: '1.0.0',
-    endpoints: {
-      auth: '/api/auth',
-      alunos: '/api/alunos',
-      funcionarios: '/api/funcionarios',
-      escola: '/api/escola'
-    }
-  });
+  res.json(apiInfo);
+});
+
+app.get('/api', (req, res) => {
+  res.json(apiInfo);
 });
 
 app.use('/api/auth', authRoutes);
