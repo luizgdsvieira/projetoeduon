@@ -1,4 +1,5 @@
 import supabase from '../config/db.js';
+import bcrypt from 'bcrypt';
 import qrUtils from '../utils/qrcode.js';
 
 export async function getAll(req, res) {
@@ -80,9 +81,12 @@ export async function create(req, res) {
     
     console.log('✅ Aluno cadastrado com sucesso:', data);
     
-    if (!data || data.length === 0) {
+    // Obter o aluno criado (pode vir do data ou precisar buscar)
+    let alunoData = data && data.length > 0 ? data[0] : null;
+    
+    if (!alunoData) {
       console.warn('⚠️ Supabase retornou array vazio, buscando aluno recém-criado');
-      const { data: alunoCriado } = await supabase
+      const { data: alunoCriado, error: buscaError } = await supabase
         .from('students')
         .select('*')
         .eq('school_id', req.user.school_id)
@@ -91,18 +95,159 @@ export async function create(req, res) {
         .limit(1)
         .single();
       
-      if (alunoCriado) {
-        return res.status(201).json(alunoCriado);
+      if (buscaError || !alunoCriado) {
+        console.error('❌ Erro ao buscar aluno recém-criado:', buscaError);
+        return res.status(201).json({ 
+          message: 'Aluno cadastrado com sucesso',
+          name: aluno.name,
+          school_id: aluno.school_id,
+          warning: 'Não foi possível gerar QR Code e login automaticamente'
+        });
       }
       
-      return res.status(201).json({ 
-        message: 'Aluno cadastrado com sucesso',
-        name: aluno.name,
-        school_id: aluno.school_id
-      });
+      alunoData = alunoCriado;
     }
     
-    res.status(201).json(data[0]);
+    // Objeto para armazenar resultados da geração
+    const geracaoResult = {
+      qrCode: { sucesso: false, erro: null },
+      login: { sucesso: false, erro: null, credenciais: null }
+    };
+    
+    // 1️⃣ Gerar QR Code (não bloqueia o cadastro se falhar)
+    try {
+      console.log('📱 Gerando QR Code para o aluno...');
+      const { token, qrImage } = await qrUtils.generateStudentQr(alunoData);
+      
+      // Atualizar aluno com o token do QR Code
+      const { error: updateError } = await supabase
+        .from('students')
+        .update({ qrcode_token: token })
+        .eq('id', alunoData.id);
+      
+      if (updateError) {
+        console.error('⚠️ Erro ao salvar token do QR Code:', updateError);
+        geracaoResult.qrCode.erro = updateError.message;
+      } else {
+        console.log('✅ QR Code gerado e salvo com sucesso');
+        geracaoResult.qrCode.sucesso = true;
+        alunoData.qrcode_token = token;
+        alunoData.qrImage = qrImage;
+      }
+    } catch (qrError) {
+      console.error('⚠️ Erro ao gerar QR Code (não bloqueia cadastro):', qrError);
+      geracaoResult.qrCode.erro = qrError.message;
+    }
+    
+    // 2️⃣ Criar usuário de login (não bloqueia o cadastro se falhar)
+    try {
+      console.log('🔐 Criando credenciais de login para o aluno...');
+      
+      // Gerar username (prioriza matrícula, senão usa nome formatado)
+      let username = alunoData.matricula 
+        ? alunoData.matricula.trim()
+        : alunoData.name.toLowerCase().replace(/\s+/g, '').replace(/[^a-z0-9]/g, '');
+      
+      if (!username || username.length < 3) {
+        throw new Error('Não foi possível gerar um username válido (matrícula ou nome muito curto)');
+      }
+      
+      // Verificar se o username já existe
+      const { data: usuarioExistente } = await supabase
+        .from('users')
+        .select('id')
+        .eq('username', username)
+        .limit(1);
+      
+      if (usuarioExistente && usuarioExistente.length > 0) {
+        console.warn(`⚠️ Username "${username}" já existe, tentando adicionar sufixo...`);
+        // Tentar com sufixo numérico
+        const usernameUnico = `${username}${alunoData.id.toString().slice(-4)}`;
+        const { data: usuarioExistente2 } = await supabase
+          .from('users')
+          .select('id')
+          .eq('username', usernameUnico)
+          .limit(1);
+        
+        if (!usuarioExistente2 || usuarioExistente2.length === 0) {
+          username = usernameUnico;
+        } else {
+          throw new Error(`Username "${username}" e variações já existem`);
+        }
+      }
+      
+      // Gerar senha padrão (matrícula ou nome formatado)
+      const senhaPadrao = alunoData.matricula 
+        ? alunoData.matricula.trim()
+        : alunoData.name.toLowerCase().replace(/\s+/g, '').replace(/[^a-z0-9]/g, '').slice(0, 8);
+      
+      if (!senhaPadrao || senhaPadrao.length < 3) {
+        throw new Error('Não foi possível gerar uma senha padrão válida');
+      }
+      
+      // Hash da senha
+      const hashedPassword = await bcrypt.hash(senhaPadrao, 10);
+      
+      // Criar usuário
+      const { error: userError } = await supabase
+        .from('users')
+        .insert([{
+          school_id: alunoData.school_id,
+          username: username,
+          password_hash: hashedPassword,
+          role: 'student',
+          student_id: alunoData.id
+        }]);
+      
+      if (userError) {
+        // Se for erro de constraint única, não é crítico
+        if (userError.code === '23505') {
+          console.warn('⚠️ Usuário de login já existe para este aluno');
+          geracaoResult.login.erro = 'Usuário de login já existe';
+        } else {
+          throw userError;
+        }
+      } else {
+        console.log('✅ Credenciais de login criadas com sucesso');
+        geracaoResult.login.sucesso = true;
+        geracaoResult.login.credenciais = {
+          username: username,
+          password: senhaPadrao,
+          role: 'student'
+        };
+      }
+    } catch (loginError) {
+      console.error('⚠️ Erro ao criar login (não bloqueia cadastro):', loginError);
+      geracaoResult.login.erro = loginError.message;
+    }
+    
+    // Preparar resposta
+    const resposta = {
+      message: 'Aluno cadastrado com sucesso!',
+      aluno: alunoData,
+      geracao: {
+        qrCode: geracaoResult.qrCode.sucesso ? 'Gerado com sucesso' : `Erro: ${geracaoResult.qrCode.erro || 'Desconhecido'}`,
+        login: geracaoResult.login.sucesso ? 'Criado com sucesso' : `Erro: ${geracaoResult.login.erro || 'Desconhecido'}`
+      }
+    };
+    
+    // Adicionar credenciais se foram geradas
+    if (geracaoResult.login.credenciais) {
+      resposta.credenciais = geracaoResult.login.credenciais;
+    }
+    
+    // Adicionar QR Image se foi gerado
+    if (alunoData.qrImage) {
+      resposta.qrImage = alunoData.qrImage;
+    }
+    
+    console.log('✅ Processo de cadastro concluído:', {
+      aluno: alunoData.name,
+      qrCode: geracaoResult.qrCode.sucesso ? '✅' : '❌',
+      login: geracaoResult.login.sucesso ? '✅' : '❌'
+    });
+    
+    res.status(201).json(resposta);
   } catch (err) {
     console.error('🔥 Erro no controller:', err);
     res.status(500).json({ 
