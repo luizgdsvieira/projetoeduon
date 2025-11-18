@@ -9,20 +9,45 @@ import escolaRoutes from './routes/escola.routes.js';
 
 const app = express();
 
-// Configuração de CORS para produção
+// Configuração de CORS
 const corsOptions = {
-  origin: [
-    'http://localhost:5173', // Vite dev server
-    'http://localhost:3000', // Vite dev server alternativo
-    'https://eduonweb.netlify.app', // Netlify
-    'https://eduonweb.netlify.app/' // Netlify com barra
-  ],
+  origin: function (origin, callback) {
+    // Permitir requisições sem origin (mobile apps, Postman, etc)
+    if (!origin) return callback(null, true);
+    
+    const allowedOrigins = [
+      'http://localhost:5173', // Vite dev server
+      'http://localhost:3000', // Vite dev server alternativo
+      'http://localhost:5174', // Vite dev server alternativo 2
+      'https://eduonweb.netlify.app', // Netlify
+      'https://eduonweb.netlify.app/', // Netlify com barra
+    ];
+    
+    // Em desenvolvimento, aceitar qualquer origem localhost
+    if (process.env.NODE_ENV !== 'production' && origin.includes('localhost')) {
+      return callback(null, true);
+    }
+    
+    if (allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      console.warn('⚠️ Origem não permitida:', origin);
+      callback(null, true); // Temporariamente permitir todas para debug
+    }
+  },
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  exposedHeaders: ['Authorization']
 };
 
 app.use(cors(corsOptions));
+
+// Middleware para log de requisições
+app.use((req, res, next) => {
+  console.log(`📥 ${req.method} ${req.path} - Origin: ${req.headers.origin || 'N/A'}`);
+  next();
+});
 app.use(json());
 
 // Rota raiz para evitar "Cannot GET /"
