@@ -74,6 +74,10 @@ export async function login(req, res) {
 
     console.log("✅ Login bem-sucedido para:", username);
 
+    // Garantir headers CORS
+    res.header('Access-Control-Allow-Origin', req.headers.origin || '*');
+    res.header('Access-Control-Allow-Credentials', 'true');
+    
     res.json({ token, role: user.role });
   } catch (err) {
     console.error("🔥 Erro no login:", err);
