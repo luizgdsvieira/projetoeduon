@@ -305,6 +305,76 @@ export async function verifyQrCode(req, res) {
   }
 }
 
+export async function deleteAluno(req, res) {
+  try {
+    const { id } = req.params;
+    
+    if (!id) {
+      return res.status(400).json({ error: 'ID do aluno é obrigatório' });
+    }
+
+    // Verificar se o aluno existe e pertence à escola do usuário
+    const { data: aluno, error: alunoError } = await supabase
+      .from('students')
+      .select('id, name, school_id')
+      .eq('id', id)
+      .eq('school_id', req.user.school_id)
+      .single();
+
+    if (alunoError || !aluno) {
+      return res.status(404).json({ 
+        error: 'Aluno não encontrado',
+        details: 'O aluno não existe ou não pertence à sua escola'
+      });
+    }
+
+    // Deletar usuário associado (se existir)
+    try {
+      const { error: userError } = await supabase
+        .from('users')
+        .delete()
+        .eq('student_id', id);
+      
+      if (userError && userError.code !== 'PGRST116') {
+        console.warn('⚠️ Aviso ao deletar usuário associado:', userError.message);
+      }
+    } catch (userErr) {
+      console.warn('⚠️ Erro ao deletar usuário associado (não bloqueia exclusão):', userErr);
+    }
+
+    // Deletar o aluno
+    const { error: deleteError } = await supabase
+      .from('students')
+      .delete()
+      .eq('id', id)
+      .eq('school_id', req.user.school_id);
+
+    if (deleteError) {
+      console.error('❌ Erro ao deletar aluno:', deleteError);
+      return res.status(500).json({ 
+        error: 'Erro ao deletar aluno', 
+        details: deleteError.message 
+      });
+    }
+
+    console.log(`✅ Aluno ${aluno.name} (ID: ${id}) deletado com sucesso`);
+    
+    res.json({ 
+      message: 'Aluno deletado com sucesso',
+      aluno: {
+        id: aluno.id,
+        name: aluno.name
+      }
+    });
+  } catch (err) {
+    console.error('🔥 Erro no controller de exclusão:', err);
+    res.status(500).json({ 
+      error: 'Erro ao deletar aluno', 
+      details: err.message 
+    });
+  }
+}
+
 
 
 

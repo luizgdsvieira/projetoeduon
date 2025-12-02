@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { getAll, getById, create } from '../controllers/aluno.controller.js';
+import { getAll, getById, create, deleteAluno } from '../controllers/aluno.controller.js';
 import { verifyQrCode } from '../controllers/qrcode.controller.js'; // se você tiver esse controller
 import { authenticate, authorizeRoles } from '../middleware/auth.middleware.js';
 
@@ -11,6 +11,9 @@ router.get('/:id', authenticate, getById);
 
 // Rota POST - criar aluno (somente admin)
 router.post('/', authenticate, authorizeRoles('admin'), create);
+
+// Rota DELETE - deletar aluno (somente admin)
+router.delete('/:id', authenticate, authorizeRoles('admin'), deleteAluno);
 
 // Rota POST - verificar QR Code (acesso livre ou autenticado, conforme sua lógica)
 router.post('/verify-qrcode', verifyQrCode);

@@ -136,3 +136,73 @@ export const create = async (req, res) => {
     });
   }
 };
+
+export const deleteFuncionario = async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    if (!id) {
+      return res.status(400).json({ error: 'ID do funcionário é obrigatório' });
+    }
+
+    // Verificar se o funcionário existe e pertence à escola do usuário
+    const { data: funcionario, error: funcionarioError } = await supabase
+      .from('staff')
+      .select('id, name, school_id')
+      .eq('id', id)
+      .eq('school_id', req.user.school_id)
+      .single();
+
+    if (funcionarioError || !funcionario) {
+      return res.status(404).json({ 
+        error: 'Funcionário não encontrado',
+        details: 'O funcionário não existe ou não pertence à sua escola'
+      });
+    }
+
+    // Deletar usuário associado (se existir)
+    try {
+      const { error: userError } = await supabase
+        .from('users')
+        .delete()
+        .eq('staff_id', id);
+      
+      if (userError && userError.code !== 'PGRST116') {
+        console.warn('⚠️ Aviso ao deletar usuário associado:', userError.message);
+      }
+    } catch (userErr) {
+      console.warn('⚠️ Erro ao deletar usuário associado (não bloqueia exclusão):', userErr);
+    }
+
+    // Deletar o funcionário
+    const { error: deleteError } = await supabase
+      .from('staff')
+      .delete()
+      .eq('id', id)
+      .eq('school_id', req.user.school_id);
+
+    if (deleteError) {
+      console.error('❌ Erro ao deletar funcionário:', deleteError);
+      return res.status(500).json({ 
+        error: 'Erro ao deletar funcionário', 
+        details: deleteError.message 
+      });
+    }
+
+    console.log(`✅ Funcionário ${funcionario.name} (ID: ${id}) deletado com sucesso`);
+    
+    res.json({ 
+      message: 'Funcionário deletado com sucesso',
+      funcionario: {
+        id: funcionario.id,
+        name: funcionario.name
+      }
+    });
+  } catch (err) {
+    console.error('🔥 Erro no controller de exclusão:', err);
+    res.status(500).json({ 
+      error: 'Erro ao deletar funcionário', 
+      details: err.message 
+    });
+  }
+};
