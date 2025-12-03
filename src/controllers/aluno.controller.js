@@ -4,13 +4,42 @@ import qrUtils from '../utils/qrcode.js';
 
 export async function getAll(req, res) {
   try {
+    // Parâmetros de paginação
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 50;
+    const offset = (page - 1) * limit;
+
+    // Buscar total de registros para calcular total de páginas
+    const { count, error: countError } = await supabase
+      .from('students')
+      .select('*', { count: 'exact', head: true })
+      .eq('school_id', req.user.school_id);
+
+    if (countError) throw countError;
+
+    // Buscar dados paginados
     const { data, error } = await supabase
       .from('students')
       .select('*')
-      .eq('school_id', req.user.school_id);
+      .eq('school_id', req.user.school_id)
+      .order('created_at', { ascending: false })
+      .range(offset, offset + limit - 1);
 
     if (error) throw error;
-    res.json(data);
+
+    const totalPages = Math.ceil((count || 0) / limit);
+
+    res.json({
+      data: data || [],
+      pagination: {
+        page,
+        limit,
+        total: count || 0,
+        totalPages,
+        hasNextPage: page < totalPages,
+        hasPrevPage: page > 1
+      }
+    });
   } catch (err) {
     console.error('Erro ao buscar alunos:', err);
     res.status(500).json({ error: 'Erro ao buscar alunos', details: err.message });
