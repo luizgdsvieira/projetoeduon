@@ -9,21 +9,7 @@ async function createStaffUser(staff, fallbackSchoolId) {
   const schoolSlug = (schoolId || '').replace(/[^a-zA-Z0-9]/g, '').slice(0, 6) || 'eduon';
   const staffSlug = (staff.id || '').replace(/[^a-zA-Z0-9]/g, '').slice(0, 6) || 'staff';
 
-  // Garantir username único
-  let baseUsername = `${schoolSlug}-stf-${staffSlug}`;
-  let username = baseUsername;
-
-  for (let i = 0; i < 5; i += 1) {
-    const { data: existing } = await supabase
-      .from('users')
-      .select('id')
-      .eq('username', username)
-      .limit(1);
-
-    if (!existing || existing.length === 0) break;
-    username = `${baseUsername}-${Math.random().toString(36).slice(-4)}`;
-  }
-
+  const username = `${schoolSlug}-stf-${staffSlug}`;
   const password = Math.random().toString(36).slice(-8);
   const password_hash = await hash(password, 10);
 
@@ -39,8 +25,6 @@ async function createStaffUser(staff, fallbackSchoolId) {
 
   return { error, credentials: { username, password, role: 'staff' } };
 }
-
-export { createFuncionario };
 
 export const getAll = async (req, res) => {
   try {
@@ -185,32 +169,49 @@ export const create = async (req, res) => {
 
     let funcionarioData = data[0];
 
-    // Gerar login para o app do fiscal (não bloqueia cadastro se falhar)
-    let credentials = null;
-    let credentialsError = null;
+    // Objeto para armazenar resultados da geração
+    const geracaoResult = {
+      login: { sucesso: false, erro: null, credenciais: null }
+    };
+
+    // Gerar login para o app do funcionário (não bloqueia cadastro se falhar)
     try {
+      console.log('🔐 Criando credenciais de login para o funcionário...');
       const { error: userError, credentials: generatedCredentials } = await createStaffUser(funcionarioData, schoolId);
       
       if (userError) {
         console.warn('⚠️ Erro ao criar usuário para funcionário:', userError);
-        credentialsError = userError.message || 'Erro desconhecido ao criar usuário';
+        geracaoResult.login.erro = userError.message || 'Erro desconhecido ao criar usuário';
       } else {
-        credentials = generatedCredentials;
+        console.log('✅ Credenciais de login criadas com sucesso');
+        geracaoResult.login.sucesso = true;
+        geracaoResult.login.credenciais = generatedCredentials;
       }
     } catch (credErr) {
-      console.warn('⚠️ Erro inesperado ao gerar credenciais do funcionário:', credErr);
-      credentialsError = credErr.message || JSON.stringify(credErr) || 'Erro inesperado ao criar credenciais';
+      console.error('⚠️ Erro inesperado ao gerar credenciais do funcionário:', credErr);
+      geracaoResult.login.erro = credErr.message || 'Erro inesperado ao criar credenciais';
     }
 
-    const responseBody = { funcionario: funcionarioData };
-    if (credentials) {
-      responseBody.credentials = credentials;
-    }
-    if (credentialsError) {
-      responseBody.credentialsError = credentialsError;
+    // Preparar resposta
+    const resposta = {
+      message: 'Funcionário cadastrado com sucesso!',
+      funcionario: funcionarioData,
+      geracao: {
+        login: geracaoResult.login.sucesso ? 'Criado com sucesso' : `Erro: ${geracaoResult.login.erro || 'Desconhecido'}`
+      }
+    };
+    
+    // Adicionar credenciais se foram geradas
+    if (geracaoResult.login.credenciais) {
+      resposta.credenciais = geracaoResult.login.credenciais;
     }
     
-    res.status(201).json(responseBody);
+    console.log('✅ Processo de cadastro concluído:', {
+      funcionario: funcionarioData.name,
+      login: geracaoResult.login.sucesso ? '✅' : '❌'
+    });
+    
+    res.status(201).json(resposta);
   } catch (err) {
     console.error('🔥 Erro no controller:', err);
     res.status(500).json({ 
