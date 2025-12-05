@@ -169,49 +169,32 @@ export const create = async (req, res) => {
 
     let funcionarioData = data[0];
 
-    // Objeto para armazenar resultados da geração
-    const geracaoResult = {
-      login: { sucesso: false, erro: null, credenciais: null }
-    };
-
-    // Gerar login para o app do funcionário (não bloqueia cadastro se falhar)
+    // Gerar login para o app do fiscal (não bloqueia cadastro se falhar)
+    let credentials = null;
+    let credentialsError = null;
     try {
-      console.log('🔐 Criando credenciais de login para o funcionário...');
       const { error: userError, credentials: generatedCredentials } = await createStaffUser(funcionarioData, schoolId);
       
       if (userError) {
         console.warn('⚠️ Erro ao criar usuário para funcionário:', userError);
-        geracaoResult.login.erro = userError.message || 'Erro desconhecido ao criar usuário';
+        credentialsError = userError.message || 'Erro desconhecido ao criar usuário';
       } else {
-        console.log('✅ Credenciais de login criadas com sucesso');
-        geracaoResult.login.sucesso = true;
-        geracaoResult.login.credenciais = generatedCredentials;
+        credentials = generatedCredentials;
       }
     } catch (credErr) {
-      console.error('⚠️ Erro inesperado ao gerar credenciais do funcionário:', credErr);
-      geracaoResult.login.erro = credErr.message || 'Erro inesperado ao criar credenciais';
+      console.warn('⚠️ Erro inesperado ao gerar credenciais do funcionário:', credErr);
+      credentialsError = credErr.message || 'Erro inesperado ao criar credenciais';
     }
 
-    // Preparar resposta
-    const resposta = {
-      message: 'Funcionário cadastrado com sucesso!',
-      funcionario: funcionarioData,
-      geracao: {
-        login: geracaoResult.login.sucesso ? 'Criado com sucesso' : `Erro: ${geracaoResult.login.erro || 'Desconhecido'}`
-      }
-    };
-    
-    // Adicionar credenciais se foram geradas
-    if (geracaoResult.login.credenciais) {
-      resposta.credenciais = geracaoResult.login.credenciais;
+    const responseBody = { funcionario: funcionarioData };
+    if (credentials) {
+      responseBody.credentials = credentials;
+    }
+    if (credentialsError) {
+      responseBody.credentialsError = credentialsError;
     }
     
-    console.log('✅ Processo de cadastro concluído:', {
-      funcionario: funcionarioData.name,
-      login: geracaoResult.login.sucesso ? '✅' : '❌'
-    });
-    
-    res.status(201).json(resposta);
+    res.status(201).json(responseBody);
   } catch (err) {
     console.error('🔥 Erro no controller:', err);
     res.status(500).json({ 
