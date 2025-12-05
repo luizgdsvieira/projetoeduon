@@ -3,24 +3,27 @@ import bcrypt from 'bcryptjs';
 
 const { hash } = bcrypt;
 
-async function createFuncionario(req, res) {
-  const { name, cargo, nascimento, school_id } = req.body;
+// Gera um usuário de app para o funcionário recém-criado
+async function createStaffUser(staff, fallbackSchoolId) {
+  const schoolId = staff.school_id || fallbackSchoolId;
+  const schoolSlug = (schoolId || '').replace(/[^a-zA-Z0-9]/g, '').slice(0, 6) || 'eduon';
+  const staffSlug = (staff.id || '').replace(/[^a-zA-Z0-9]/g, '').slice(0, 6) || 'staff';
 
-  const { data: staff, error } = await supabase
-    .from('staff')
-    .insert([{ name, cargo, nascimento, school_id }])
-    .select('*')
-    .single();
+  const username = `${schoolSlug}-stf-${staffSlug}`;
+  const password = Math.random().toString(36).slice(-8);
+  const password_hash = await hash(password, 10);
 
-  if (error) return res.status(400).json({ error });
+  const { error } = await supabase
+    .from('users')
+    .insert([{
+      school_id: schoolId,
+      username,
+      password_hash,
+      role: 'staff',
+      staff_id: staff.id
+    }]);
 
-  const username = `${school_id.slice(0, 6)}-stf-${staff.id.slice(0, 6)}`;
-  const passwordPlain = Math.random().toString(36).slice(-8);
-  const password_hash = await hash(passwordPlain, 10);
-
-  await supabase.from('users').insert([{ school_id, username, password_hash, role: 'staff', staff_id: staff.id }]);
-
-  res.json({ staff, credentials: { username, password: passwordPlain } });
+  return { error, credentials: { username, password, role: 'staff' } };
 }
 
 export { createFuncionario };
@@ -152,11 +155,33 @@ export const create = async (req, res) => {
       return res.status(201).json({ 
         message: 'Funcionário cadastrado com sucesso',
         name: funcionario.name,
-        school_id: funcionario.school_id
+        school_id: funcionario.school_id,
+        warning: 'Não foi possível recuperar o funcionário criado automaticamente'
       });
     }
+
+    let funcionarioData = data[0];
+
+    // Gerar login para o app do fiscal (não bloqueia cadastro se falhar)
+    let credentials = null;
+    try {
+      const { error: userError, credentials: generatedCredentials } = await createStaffUser(funcionarioData, req.user.school_id);
+      
+      if (userError) {
+        console.warn('⚠️ Erro ao criar usuário para funcionário:', userError);
+      } else {
+        credentials = generatedCredentials;
+      }
+    } catch (credErr) {
+      console.warn('⚠️ Erro inesperado ao gerar credenciais do funcionário:', credErr);
+    }
+
+    const responseBody = { funcionario: funcionarioData };
+    if (credentials) {
+      responseBody.credentials = credentials;
+    }
     
-    res.status(201).json(data[0]);
+    res.status(201).json(responseBody);
   } catch (err) {
     console.error('🔥 Erro no controller:', err);
     res.status(500).json({ 
