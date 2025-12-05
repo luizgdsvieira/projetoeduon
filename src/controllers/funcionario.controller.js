@@ -9,7 +9,21 @@ async function createStaffUser(staff, fallbackSchoolId) {
   const schoolSlug = (schoolId || '').replace(/[^a-zA-Z0-9]/g, '').slice(0, 6) || 'eduon';
   const staffSlug = (staff.id || '').replace(/[^a-zA-Z0-9]/g, '').slice(0, 6) || 'staff';
 
-  const username = `${schoolSlug}-stf-${staffSlug}`;
+  // Garantir username único
+  let baseUsername = `${schoolSlug}-stf-${staffSlug}`;
+  let username = baseUsername;
+
+  for (let i = 0; i < 5; i += 1) {
+    const { data: existing } = await supabase
+      .from('users')
+      .select('id')
+      .eq('username', username)
+      .limit(1);
+
+    if (!existing || existing.length === 0) break;
+    username = `${baseUsername}-${Math.random().toString(36).slice(-4)}`;
+  }
+
   const password = Math.random().toString(36).slice(-8);
   const password_hash = await hash(password, 10);
 
@@ -185,7 +199,7 @@ export const create = async (req, res) => {
       }
     } catch (credErr) {
       console.warn('⚠️ Erro inesperado ao gerar credenciais do funcionário:', credErr);
-      credentialsError = credErr.message || 'Erro inesperado ao criar credenciais';
+      credentialsError = credErr.message || JSON.stringify(credErr) || 'Erro inesperado ao criar credenciais';
     }
 
     const responseBody = { funcionario: funcionarioData };
