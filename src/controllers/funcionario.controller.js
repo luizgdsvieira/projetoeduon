@@ -94,6 +94,15 @@ export const create = async (req, res) => {
     console.log('📥 Dados recebidos para cadastro de funcionário:', req.body);
     console.log('👤 Usuário logado:', req.user);
     
+    // Identificar a escola
+    const schoolId = req.user?.school_id || req.body.school_id;
+    if (!schoolId) {
+      return res.status(400).json({
+        error: 'School_id não encontrado',
+        details: 'O usuário admin precisa estar vinculado a uma escola ou informar school_id'
+      });
+    }
+    
     // Validar campos obrigatórios
     if (!req.body.name && !req.body.nome) {
       return res.status(400).json({ 
@@ -107,7 +116,7 @@ export const create = async (req, res) => {
       name: req.body.name || req.body.nome,
       cargo: req.body.cargo || null,
       nascimento: req.body.nascimento || null,
-      school_id: req.user.school_id 
+      school_id: schoolId 
     };
     
     // Remover campos undefined ou vazios (exceto school_id que é obrigatório)
@@ -164,21 +173,27 @@ export const create = async (req, res) => {
 
     // Gerar login para o app do fiscal (não bloqueia cadastro se falhar)
     let credentials = null;
+    let credentialsError = null;
     try {
-      const { error: userError, credentials: generatedCredentials } = await createStaffUser(funcionarioData, req.user.school_id);
+      const { error: userError, credentials: generatedCredentials } = await createStaffUser(funcionarioData, schoolId);
       
       if (userError) {
         console.warn('⚠️ Erro ao criar usuário para funcionário:', userError);
+        credentialsError = userError.message || 'Erro desconhecido ao criar usuário';
       } else {
         credentials = generatedCredentials;
       }
     } catch (credErr) {
       console.warn('⚠️ Erro inesperado ao gerar credenciais do funcionário:', credErr);
+      credentialsError = credErr.message || 'Erro inesperado ao criar credenciais';
     }
 
     const responseBody = { funcionario: funcionarioData };
     if (credentials) {
       responseBody.credentials = credentials;
+    }
+    if (credentialsError) {
+      responseBody.credentialsError = credentialsError;
     }
     
     res.status(201).json(responseBody);
