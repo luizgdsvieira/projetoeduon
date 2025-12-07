@@ -45,7 +45,7 @@ export async function login(req, res) {
       return res.status(401).json({ error: 'Usuário não encontrado' });
     }
 
-    console.log("👤 Usuário encontrado:", { id: user.id, username: user.username, role: user.role });
+    console.log("👤 Usuário encontrado:", { id: user.id, username: user.username, role: user.role, student_id: user.student_id });
 
     // Valida a senha
     if (!user.password_hash) {
@@ -66,8 +66,21 @@ export async function login(req, res) {
       return res.status(500).json({ error: 'Erro de configuração do servidor' });
     }
 
+    // Preparar payload do JWT - incluir student_id se for aluno
+    const jwtPayload = {
+      id: user.id,
+      role: user.role,
+      school_id: user.school_id
+    };
+
+    // Se for aluno, incluir student_id no token
+    if (user.role === 'student' && user.student_id) {
+      jwtPayload.student_id = user.student_id;
+      console.log("📚 Aluno detectado, incluindo student_id no token:", user.student_id);
+    }
+
     const token = sign(
-      { id: user.id, role: user.role, school_id: user.school_id },
+      jwtPayload,
       process.env.JWT_SECRET,
       { expiresIn: '8h' }
     );

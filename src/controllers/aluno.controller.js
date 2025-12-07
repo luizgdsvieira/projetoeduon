@@ -48,10 +48,38 @@ export async function getAll(req, res) {
 
 export async function getById(req, res) {
   try {
+    const alunoId = req.params.id;
+    
+    // Se for aluno, só pode buscar seus próprios dados
+    if (req.user.role === 'student') {
+      if (req.user.student_id && req.user.student_id !== alunoId) {
+        return res.status(403).json({ 
+          error: 'Acesso negado', 
+          details: 'Você só pode acessar seus próprios dados' 
+        });
+      }
+      // Se não passou ID, usar o student_id do token
+      const idToSearch = alunoId || req.user.student_id;
+      
+      const { data, error } = await supabase
+        .from('students')
+        .select('*')
+        .eq('id', idToSearch)
+        .eq('school_id', req.user.school_id)
+        .single();
+
+      if (error) throw error;
+      if (!data) {
+        return res.status(404).json({ error: 'Aluno não encontrado' });
+      }
+      return res.json(data);
+    }
+    
+    // Admin pode buscar qualquer aluno da sua escola
     const { data, error } = await supabase
       .from('students')
       .select('*')
-      .eq('id', req.params.id)
+      .eq('id', alunoId)
       .eq('school_id', req.user.school_id)
       .single();
 
@@ -60,6 +88,56 @@ export async function getById(req, res) {
   } catch (err) {
     console.error('Erro ao buscar aluno:', err);
     res.status(500).json({ error: 'Erro ao buscar aluno', details: err.message });
+  }
+}
+
+// Nova função para aluno buscar seus próprios dados
+export async function getMyData(req, res) {
+  try {
+    // Verificar se é aluno
+    if (req.user.role !== 'student') {
+      return res.status(403).json({ 
+        error: 'Acesso negado', 
+        details: 'Esta rota é apenas para alunos' 
+      });
+    }
+
+    // Verificar se tem student_id no token
+    if (!req.user.student_id) {
+      return res.status(400).json({ 
+        error: 'Dados incompletos', 
+        details: 'Token não contém student_id' 
+      });
+    }
+
+    // Buscar dados do aluno
+    const { data, error } = await supabase
+      .from('students')
+      .select('*')
+      .eq('id', req.user.student_id)
+      .eq('school_id', req.user.school_id)
+      .single();
+
+    if (error) {
+      console.error('Erro ao buscar dados do aluno:', error);
+      throw error;
+    }
+
+    if (!data) {
+      return res.status(404).json({ 
+        error: 'Aluno não encontrado',
+        details: 'Não foi possível encontrar seus dados' 
+      });
+    }
+
+    console.log('✅ Dados do aluno retornados:', { id: data.id, name: data.name });
+    res.json(data);
+  } catch (err) {
+    console.error('Erro ao buscar dados do aluno:', err);
+    res.status(500).json({ 
+      error: 'Erro ao buscar dados do aluno', 
+      details: err.message 
+    });
   }
 }
 
@@ -427,10 +505,38 @@ export async function getAll(req, res) {
 
 export async function getById(req, res) {
   try {
+    const alunoId = req.params.id;
+    
+    // Se for aluno, só pode buscar seus próprios dados
+    if (req.user.role === 'student') {
+      if (req.user.student_id && req.user.student_id !== alunoId) {
+        return res.status(403).json({ 
+          error: 'Acesso negado', 
+          details: 'Você só pode acessar seus próprios dados' 
+        });
+      }
+      // Se não passou ID, usar o student_id do token
+      const idToSearch = alunoId || req.user.student_id;
+      
+      const { data, error } = await supabase
+        .from('students')
+        .select('*')
+        .eq('id', idToSearch)
+        .eq('school_id', req.user.school_id)
+        .single();
+
+      if (error) throw error;
+      if (!data) {
+        return res.status(404).json({ error: 'Aluno não encontrado' });
+      }
+      return res.json(data);
+    }
+    
+    // Admin pode buscar qualquer aluno da sua escola
     const { data, error } = await supabase
       .from('students')
       .select('*')
-      .eq('id', req.params.id)
+      .eq('id', alunoId)
       .eq('school_id', req.user.school_id)
       .single();
 
@@ -439,6 +545,56 @@ export async function getById(req, res) {
   } catch (err) {
     console.error('Erro ao buscar aluno:', err);
     res.status(500).json({ error: 'Erro ao buscar aluno', details: err.message });
+  }
+}
+
+// Nova função para aluno buscar seus próprios dados
+export async function getMyData(req, res) {
+  try {
+    // Verificar se é aluno
+    if (req.user.role !== 'student') {
+      return res.status(403).json({ 
+        error: 'Acesso negado', 
+        details: 'Esta rota é apenas para alunos' 
+      });
+    }
+
+    // Verificar se tem student_id no token
+    if (!req.user.student_id) {
+      return res.status(400).json({ 
+        error: 'Dados incompletos', 
+        details: 'Token não contém student_id' 
+      });
+    }
+
+    // Buscar dados do aluno
+    const { data, error } = await supabase
+      .from('students')
+      .select('*')
+      .eq('id', req.user.student_id)
+      .eq('school_id', req.user.school_id)
+      .single();
+
+    if (error) {
+      console.error('Erro ao buscar dados do aluno:', error);
+      throw error;
+    }
+
+    if (!data) {
+      return res.status(404).json({ 
+        error: 'Aluno não encontrado',
+        details: 'Não foi possível encontrar seus dados' 
+      });
+    }
+
+    console.log('✅ Dados do aluno retornados:', { id: data.id, name: data.name });
+    res.json(data);
+  } catch (err) {
+    console.error('Erro ao buscar dados do aluno:', err);
+    res.status(500).json({ 
+      error: 'Erro ao buscar dados do aluno', 
+      details: err.message 
+    });
   }
 }
 

@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { getAll, getById, create, deleteAluno } from '../controllers/aluno.controller.js';
+import { getAll, getById, create, deleteAluno, getMyData } from '../controllers/aluno.controller.js';
 import { verifyQrCode } from '../controllers/qrcode.controller.js'; // se você tiver esse controller
 import { authenticate, authorizeRoles } from '../middleware/auth.middleware.js';
 
@@ -7,6 +7,7 @@ const router = Router();
 
 // Rotas GET
 router.get('/', authenticate, getAll);
+router.get('/me', authenticate, getMyData); // Rota para aluno buscar seus próprios dados
 router.get('/:id', authenticate, getById);
 
 // Rota POST - criar aluno (somente admin)
