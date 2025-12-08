@@ -11,7 +11,13 @@ export const authenticate = (req, res, next) => {
 
   try {
     const decoded = verify(token, process.env.JWT_SECRET);
-    req.user = decoded; // { id, role, school_id }
+    req.user = decoded; // { id, role, school_id, student_id? }
+    console.log('🔐 Token decodificado:', { 
+      id: decoded.id, 
+      role: decoded.role, 
+      school_id: decoded.school_id, 
+      student_id: decoded.student_id 
+    });
     next();
   } catch (err) {
     return res.status(403).json({ error: 'Token expirado ou inválido' });

@@ -4,6 +4,59 @@ import qrUtils from '../utils/qrcode.js';
 
 export async function getAll(req, res) {
   try {
+    console.log('📋 getAll chamado:', { 
+      role: req.user.role, 
+      student_id: req.user.student_id,
+      school_id: req.user.school_id 
+    });
+    
+    // Se for aluno, retornar apenas seus próprios dados
+    if (req.user.role === 'student') {
+      if (!req.user.student_id) {
+        console.error('❌ Aluno sem student_id no token:', req.user);
+        return res.status(400).json({ 
+          error: 'Dados incompletos', 
+          details: 'Token não contém student_id. Faça login novamente.' 
+        });
+      }
+
+      // Buscar apenas os dados do aluno logado
+      const { data, error } = await supabase
+        .from('students')
+        .select('*')
+        .eq('id', req.user.student_id)
+        .eq('school_id', req.user.school_id)
+        .single();
+
+      if (error) {
+        console.error('Erro ao buscar dados do aluno:', error);
+        throw error;
+      }
+
+      if (!data) {
+        return res.status(404).json({ 
+          error: 'Aluno não encontrado',
+          details: 'Não foi possível encontrar seus dados' 
+        });
+      }
+
+      console.log('✅ Dados do aluno retornados (getAll):', { id: data.id, name: data.name });
+      
+      // Retornar no mesmo formato que getAll retorna para admin (array com um item)
+      return res.json({
+        data: [data],
+        pagination: {
+          page: 1,
+          limit: 1,
+          total: 1,
+          totalPages: 1,
+          hasNextPage: false,
+          hasPrevPage: false
+        }
+      });
+    }
+
+    // Se for admin, retornar todos os alunos da escola (com paginação)
     // Parâmetros de paginação
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 50;
