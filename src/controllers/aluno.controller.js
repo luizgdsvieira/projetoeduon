@@ -1,6 +1,7 @@
 import supabase from '../config/db.js';
 import bcrypt from 'bcrypt';
 import qrUtils from '../utils/qrcode.js';
+import { toDataURL } from 'qrcode';
 
 export async function getAll(req, res) {
   try {
@@ -530,6 +531,70 @@ export async function deleteAluno(req, res) {
     console.error('🔥 Erro no controller de exclusão:', err);
     res.status(500).json({ 
       error: 'Erro ao deletar aluno', 
+      details: err.message 
+    });
+  }
+}
+
+// Função para gerar/obter QR Code de um aluno existente
+export async function getQrCode(req, res) {
+  try {
+    const { id } = req.params;
+    
+    if (!id) {
+      return res.status(400).json({ error: 'ID do aluno é obrigatório' });
+    }
+
+    // Buscar o aluno
+    const { data: aluno, error: alunoError } = await supabase
+      .from('students')
+      .select('*')
+      .eq('id', id)
+      .eq('school_id', req.user.school_id)
+      .single();
+
+    if (alunoError || !aluno) {
+      return res.status(404).json({ 
+        error: 'Aluno não encontrado',
+        details: 'O aluno não existe ou não pertence à sua escola'
+      });
+    }
+
+    // Se já tem QR Code token, gerar a imagem a partir do token existente
+    if (aluno.qrcode_token) {
+      // Usar o token existente para gerar a imagem
+      const qrImage = await toDataURL(aluno.qrcode_token);
+      return res.json({ 
+        qrImage,
+        token: aluno.qrcode_token,
+        message: 'QR Code recuperado com sucesso'
+      });
+    }
+
+    // Se não tem token, gerar novo QR Code
+    console.log('📱 Gerando novo QR Code para aluno:', aluno.name);
+    const { token, qrImage } = await qrUtils.generateStudentQr(aluno);
+
+    // Salvar o token no banco
+    const { error: updateError } = await supabase
+      .from('students')
+      .update({ qrcode_token: token })
+      .eq('id', aluno.id);
+
+    if (updateError) {
+      console.warn('⚠️ Erro ao salvar token do QR Code:', updateError);
+      // Não falha, apenas retorna o QR Code gerado
+    }
+
+    res.json({ 
+      qrImage,
+      token,
+      message: 'QR Code gerado com sucesso'
+    });
+  } catch (err) {
+    console.error('🔥 Erro ao gerar QR Code:', err);
+    res.status(500).json({ 
+      error: 'Erro ao gerar QR Code', 
       details: err.message 
     });
   }
